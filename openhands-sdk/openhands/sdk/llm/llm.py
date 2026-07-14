@@ -1368,14 +1368,18 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         @self._make_retry_decorator()
         def _one_attempt(**retry_kwargs: Any) -> ModelResponse:
             assert self._telemetry is not None
+            # 记录请求开始，监控、日志或链路追踪
             self._telemetry.on_request(telemetry_ctx=telemetry_ctx)
+            # 参数合并
             final_kwargs = {**call_kwargs, **retry_kwargs}
+            # 发起HTTP/HTTPS请求调用大模型API
             resp = self._transport_call(
                 messages=formatted_messages,
                 **final_kwargs,
                 enable_streaming=enable_streaming,
                 on_token=on_token,
             )
+            # 对返回结果进行工具调用解析、安全风控检查等
             resp = self._validate_chat_response(
                 resp,
                 use_mock_tools=use_mock_tools,
@@ -1404,6 +1408,7 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
                     on_token=on_token,
                     **_caller_kwargs,
                 )
+
             return self._handle_error(
                 e,
                 lambda fb: fb.completion(
@@ -1969,9 +1974,9 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
                     chunks.append(chunk)
                 ret = litellm.stream_chunk_builder(chunks, messages=messages)
 
-            assert isinstance(ret, ModelResponse), (
-                f"Expected ModelResponse, got {type(ret)}"
-            )
+            assert isinstance(
+                ret, ModelResponse
+            ), f"Expected ModelResponse, got {type(ret)}"
             return ret
 
     async def _atransport_call(
@@ -2001,9 +2006,9 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
                     chunks.append(chunk)
                 ret = litellm.stream_chunk_builder(chunks, messages=messages)
 
-            assert isinstance(ret, ModelResponse), (
-                f"Expected ModelResponse, got {type(ret)}"
-            )
+            assert isinstance(
+                ret, ModelResponse
+            ), f"Expected ModelResponse, got {type(ret)}"
             return ret
 
     @contextmanager
@@ -2341,9 +2346,9 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         # PROMPT_CACHE_MODELS because its cache can't extend this way.
         for message in reversed(messages):
             if message.role in ("user", "tool"):
-                message.content[
-                    -1
-                ].cache_prompt = True  # Last item inside the message content
+                message.content[-1].cache_prompt = (
+                    True  # Last item inside the message content
+                )
                 break
 
     def _inline_required(self) -> bool:
