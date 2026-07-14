@@ -161,7 +161,8 @@ class LocalConversation(BaseConversation):
     _plugin_specs: list[PluginSource] | None
     _resolved_plugins: list[ResolvedPluginSource] | None
     _plugins_loaded: bool
-    _pending_hook_config: HookConfig | None  # Hook config to combine with plugin hooks
+    # Hook config to combine with plugin hooks
+    _pending_hook_config: HookConfig | None
     _subscription_disabled_condenser: Any | None
 
     def __init__(
@@ -287,7 +288,8 @@ class LocalConversation(BaseConversation):
                 ts for ts in client_tool_specs if ts.name not in existing_names
             ]
             if new_tools:
-                agent = agent.model_copy(update={"tools": [*agent.tools, *new_tools]})
+                agent = agent.model_copy(
+                    update={"tools": [*agent.tools, *new_tools]})
 
         self.agent = agent
         if isinstance(workspace, (str, Path)):
@@ -304,7 +306,8 @@ class LocalConversation(BaseConversation):
             id=desired_id,
             agent=agent,
             workspace=self.workspace,
-            persistence_dir=self.get_persistence_dir(persistence_dir, desired_id)
+            persistence_dir=self.get_persistence_dir(
+                persistence_dir, desired_id)
             if persistence_dir
             else None,
             max_iterations=max_iteration_per_run,
@@ -411,7 +414,8 @@ class LocalConversation(BaseConversation):
                     # even with a None value — that is their resolved state, not
                     # a stale placeholder to overwrite.
                     if existing is None or (
-                        isinstance(existing, StaticSecret) and existing.value is None
+                        isinstance(
+                            existing, StaticSecret) and existing.value is None
                     ):
                         fill_secrets[name] = secret
                 if fill_secrets:
@@ -419,7 +423,8 @@ class LocalConversation(BaseConversation):
 
         # Higher priority: request.secrets overwrites duplicate keys from above.
         if secrets:
-            secret_values: dict[str, SecretValue] = {k: v for k, v in secrets.items()}
+            secret_values: dict[str, SecretValue] = {
+                k: v for k, v in secrets.items()}
             self.update_secrets(secret_values)
 
         atexit.register(self.close)
@@ -512,7 +517,8 @@ class LocalConversation(BaseConversation):
         logger.error(detail)
         self._state.execution_status = ConversationExecutionStatus.ERROR
         self._on_event(
-            ConversationErrorEvent(source="environment", code=code, detail=detail)
+            ConversationErrorEvent(source="environment",
+                                   code=code, detail=detail)
         )
 
     @property
@@ -607,7 +613,8 @@ class LocalConversation(BaseConversation):
                 conversation_id=fork_id,
                 max_iteration_per_run=self.max_iteration_per_run,
                 stuck_detection=self._stuck_detector is not None,
-                visualizer=type(self._visualizer) if self._visualizer else None,
+                visualizer=type(
+                    self._visualizer) if self._visualizer else None,
                 delete_on_close=self.delete_on_close,
                 tags=tags,
             )
@@ -625,7 +632,8 @@ class LocalConversation(BaseConversation):
             fork_conv._state.activated_knowledge_skills = list(
                 self._state.activated_knowledge_skills
             )
-            fork_conv._state.agent_state = copy.deepcopy(self._state.agent_state)
+            fork_conv._state.agent_state = copy.deepcopy(
+                self._state.agent_state)
 
             # Copy title via tags if provided
             if title is not None:
@@ -636,7 +644,8 @@ class LocalConversation(BaseConversation):
 
             # Reset or copy metrics
             if not reset_metrics:
-                fork_conv._state.stats = self._state.stats.model_copy(deep=True)
+                fork_conv._state.stats = self._state.stats.model_copy(
+                    deep=True)
 
             event_count = len(self._state.events)
 
@@ -673,7 +682,8 @@ class LocalConversation(BaseConversation):
         explicit_plugin_names: set[str] = set()
 
         merged_context = self.agent.agent_context
-        merged_mcp = dict(self.agent.mcp_config) if self.agent.mcp_config else {}
+        merged_mcp = dict(
+            self.agent.mcp_config) if self.agent.mcp_config else {}
 
         # Track whether we have plugins or MCP config to process
         has_mcp_config = bool(merged_mcp)
@@ -694,7 +704,8 @@ class LocalConversation(BaseConversation):
             registry = MarketplaceRegistry(registrations)
             for registration in registry.get_auto_load_registrations():
                 try:
-                    marketplace, _ = registry.get_marketplace(registration.name)
+                    marketplace, _ = registry.get_marketplace(
+                        registration.name)
                 except Exception:
                     logger.warning(
                         "Failed to load marketplace '%s'; continuing without it",
@@ -703,16 +714,19 @@ class LocalConversation(BaseConversation):
                     )
                     continue
                 for entry in marketplace.plugins:
-                    source, ref, repo_path = marketplace.resolve_plugin_source(entry)
+                    source, ref, repo_path = marketplace.resolve_plugin_source(
+                        entry)
                     plugins_to_load.append(
                         (
-                            PluginSource(source=source, ref=ref, repo_path=repo_path),
+                            PluginSource(source=source, ref=ref,
+                                         repo_path=repo_path),
                             True,
                         )
                     )
 
         if self._plugin_specs:
-            plugins_to_load.extend((spec, False) for spec in self._plugin_specs)
+            plugins_to_load.extend((spec, False)
+                                   for spec in self._plugin_specs)
 
         # Load plugins if specified or registered for auto-load
         if plugins_to_load:
@@ -743,7 +757,8 @@ class LocalConversation(BaseConversation):
                 # record keeps the ${VAR} placeholder rather than the raw
                 # secret. from_plugin_source() additionally redacts any inline
                 # credentials. Resume re-fetches via the resolved commit SHA.
-                resolved = ResolvedPluginSource.from_plugin_source(spec, resolved_ref)
+                resolved = ResolvedPluginSource.from_plugin_source(
+                    spec, resolved_ref)
                 self._resolved_plugins.append(resolved)
 
                 # Load the plugin
@@ -767,7 +782,8 @@ class LocalConversation(BaseConversation):
                 if plugin.agents:
                     all_plugin_agents.extend(plugin.agents)
 
-            logger.info(f"Loaded {len(plugins_to_load)} plugin(s) via Conversation")
+            logger.info(
+                f"Loaded {len(plugins_to_load)} plugin(s) via Conversation")
 
         # Ambient plugins: enabled installed plugins plus local user/project
         # plugins, mirroring how installed/local skills already auto-load. These
@@ -1008,7 +1024,8 @@ class LocalConversation(BaseConversation):
         if not plugin_mcp_config:
             return []
         return list(
-            create_mcp_tools(plugin_mcp_config, _RUNTIME_MCP_TIMEOUT_SECS).tools
+            create_mcp_tools(plugin_mcp_config,
+                             _RUNTIME_MCP_TIMEOUT_SECS).tools
         )
 
     def _runtime_skill_tools_for_agent(self) -> list[ToolDefinition]:
@@ -1043,7 +1060,8 @@ class LocalConversation(BaseConversation):
         spec = self._marketplace_registry_from_context().resolve_plugin(plugin_ref)
 
         fetch_source = self._expand_plugin_source_ref(spec.source)
-        fetch_ref = self._expand_plugin_source_ref(spec.ref) if spec.ref else spec.ref
+        fetch_ref = self._expand_plugin_source_ref(
+            spec.ref) if spec.ref else spec.ref
         path, resolved_ref = fetch_plugin_with_resolution(
             source=fetch_source,
             ref=fetch_ref,
@@ -1099,7 +1117,8 @@ class LocalConversation(BaseConversation):
             if plugin.hooks and not plugin.hooks.is_empty():
                 self._merge_runtime_plugin_hooks(plugin.hooks)
 
-            resolved = ResolvedPluginSource.from_plugin_source(spec, resolved_ref)
+            resolved = ResolvedPluginSource.from_plugin_source(
+                spec, resolved_ref)
             if self._resolved_plugins is None:
                 self._resolved_plugins = []
             self._resolved_plugins.append(resolved)
@@ -1315,7 +1334,8 @@ class LocalConversation(BaseConversation):
         try:
             cached = self.llm_registry.get(usage_id)
         except KeyError:
-            loaded = self._profile_store.load(profile_name, cipher=self._cipher)
+            loaded = self._profile_store.load(
+                profile_name, cipher=self._cipher)
             cached = loaded.model_copy(update={"usage_id": usage_id})
         self.switch_llm(cached)
 
@@ -1455,7 +1475,8 @@ class LocalConversation(BaseConversation):
                         f"activated skills: {activated_skill_names}"
                     )
                     extended_content.append(content)
-                    self._state.activated_knowledge_skills.extend(activated_skill_names)
+                    self._state.activated_knowledge_skills.extend(
+                        activated_skill_names)
 
             user_msg_event = MessageEvent(
                 source="user",
@@ -1531,7 +1552,8 @@ class LocalConversation(BaseConversation):
                                         source="environment",
                                         llm_message=Message(
                                             role="user",
-                                            content=[TextContent(text=prefixed)],
+                                            content=[TextContent(
+                                                text=prefixed)],
                                         ),
                                     )
                                     self._on_event(feedback_msg)
@@ -1572,6 +1594,7 @@ class LocalConversation(BaseConversation):
                         )
                     finally:
                         self._step_holds_state_lock = False
+
                     iteration += 1
 
                     # Check for non-finished terminal conditions
@@ -1583,17 +1606,14 @@ class LocalConversation(BaseConversation):
                     # 4. Run loop continues to next iteration and processes the message
                     # 5. Without this design, concurrent messages would be lost
                     if (
-                        self.state.execution_status
-                        == ConversationExecutionStatus.WAITING_FOR_CONFIRMATION
+                        self.state.execution_status == ConversationExecutionStatus.WAITING_FOR_CONFIRMATION
                     ):
                         break
 
                     budget_detail = self._budget_exceeded_detail()
-                    if budget_detail and (
-                        self._state.execution_status
-                        != ConversationExecutionStatus.FINISHED
-                    ):
-                        self._emit_run_limit_error("MaxBudgetReached", budget_detail)
+                    if budget_detail and (self._state.execution_status != ConversationExecutionStatus.FINISHED):
+                        self._emit_run_limit_error(
+                            "MaxBudgetReached", budget_detail)
                         break
 
                     if iteration >= self.max_iteration_per_run:
@@ -1601,12 +1621,11 @@ class LocalConversation(BaseConversation):
                         # preserve the FINISHED status rather than
                         # overwriting it with ERROR.
                         if (
-                            self._state.execution_status
-                            == ConversationExecutionStatus.FINISHED
+                            self._state.execution_status == ConversationExecutionStatus.FINISHED
                         ):
                             break
                         error_msg = (
-                            f"Agent reached maximum iterations limit "
+                            f"代理已达到最大迭代次数限制"
                             f"({self.max_iteration_per_run})."
                         )
                         logger.error(error_msg)
@@ -1615,7 +1634,7 @@ class LocalConversation(BaseConversation):
                             ConversationErrorEvent(
                                 source="environment",
                                 code="MaxIterationsReached",
-                                detail=error_msg,
+                                detail=error_msg
                             )
                         )
                         break
@@ -1687,7 +1706,8 @@ class LocalConversation(BaseConversation):
                     updated_agent_state[ACP_LAST_PROMPT_USER_MESSAGE_ID] = (
                         inflight_prompt_user_message_id
                     )
-                    updated_agent_state.pop(ACP_INFLIGHT_PROMPT_USER_MESSAGE_ID, None)
+                    updated_agent_state.pop(
+                        ACP_INFLIGHT_PROMPT_USER_MESSAGE_ID, None)
                     self._state.agent_state = updated_agent_state
 
             if self._state.execution_status in [
@@ -1733,7 +1753,8 @@ class LocalConversation(BaseConversation):
                                         source="environment",
                                         llm_message=Message(
                                             role="user",
-                                            content=[TextContent(text=prefixed)],
+                                            content=[TextContent(
+                                                text=prefixed)],
                                         ),
                                     )
                                     self._on_event(feedback_msg)
@@ -1945,13 +1966,15 @@ class LocalConversation(BaseConversation):
                     )
                     updated_agent_state = dict(self._state.agent_state)
                     if (
-                        updated_agent_state.get(ACP_INFLIGHT_PROMPT_USER_MESSAGE_ID)
+                        updated_agent_state.get(
+                            ACP_INFLIGHT_PROMPT_USER_MESSAGE_ID)
                         == acp_step_user_message_id
                     ):
                         updated_agent_state.pop(
                             ACP_INFLIGHT_PROMPT_USER_MESSAGE_ID, None
                         )
-                    updated_agent_state.pop(ACP_SUPERSEDE_INFLIGHT_PROMPT, None)
+                    updated_agent_state.pop(
+                        ACP_SUPERSEDE_INFLIGHT_PROMPT, None)
                     if (
                         acp_step_user_message_id is not None
                         and self._state.execution_status
@@ -2022,7 +2045,8 @@ class LocalConversation(BaseConversation):
                         self._state.execution_status
                         != ConversationExecutionStatus.FINISHED
                     ):
-                        self._emit_run_limit_error("MaxBudgetReached", budget_detail)
+                        self._emit_run_limit_error(
+                            "MaxBudgetReached", budget_detail)
                         break
 
                     if iteration >= self.max_iteration_per_run:
@@ -2059,7 +2083,8 @@ class LocalConversation(BaseConversation):
                     ACP_INFLIGHT_PROMPT_USER_MESSAGE_ID, None
                 )
                 superseded_by_new_message = bool(
-                    updated_agent_state.pop(ACP_SUPERSEDE_INFLIGHT_PROMPT, False)
+                    updated_agent_state.pop(
+                        ACP_SUPERSEDE_INFLIGHT_PROMPT, False)
                 )
                 completed_cancelled_prompt = (
                     self._state.execution_status == ConversationExecutionStatus.FINISHED
@@ -2084,7 +2109,8 @@ class LocalConversation(BaseConversation):
         except Exception as e:
             with self._state:
                 updated_agent_state = dict(self._state.agent_state)
-                updated_agent_state.pop(ACP_INFLIGHT_PROMPT_USER_MESSAGE_ID, None)
+                updated_agent_state.pop(
+                    ACP_INFLIGHT_PROMPT_USER_MESSAGE_ID, None)
                 updated_agent_state.pop(ACP_SUPERSEDE_INFLIGHT_PROMPT, None)
                 self._state.agent_state = updated_agent_state
                 self._state.execution_status = ConversationExecutionStatus.ERROR
@@ -2123,7 +2149,8 @@ class LocalConversation(BaseConversation):
         This is a non-invasive method to reject actions between run() calls.
         Also clears the agent_waiting_for_confirmation flag.
         """
-        pending_actions = ConversationState.get_unmatched_actions(self._state.events)
+        pending_actions = ConversationState.get_unmatched_actions(
+            self._state.events)
 
         with self._state:
             # Always clear the agent_waiting_for_confirmation flag
@@ -2146,7 +2173,8 @@ class LocalConversation(BaseConversation):
                     rejection_reason=reason,
                 )
                 self._on_event(rejection_event)
-                logger.info(f"Rejected pending action: {action_event} - {reason}")
+                logger.info(
+                    f"Rejected pending action: {action_event} - {reason}")
 
     def _emit_orphaned_action_errors(self) -> None:
         """Emit ``AgentErrorEvent`` for actions that have no observation.
@@ -2326,7 +2354,8 @@ class LocalConversation(BaseConversation):
         from openhands.sdk.agent.utils import make_llm_completion, prepare_llm_messages
 
         template_dir = (
-            Path(__file__).parent.parent.parent / "context" / "prompts" / "templates"
+            Path(__file__).parent.parent.parent /
+            "context" / "prompts" / "templates"
         )
 
         question_text = render_template(
@@ -2440,7 +2469,8 @@ class LocalConversation(BaseConversation):
         # This will trigger the condenser if it handles condensation requests
         with self._state:
             # Take a single step to process the condensation request
-            self.agent.step(self, on_event=self._on_event, on_token=self._on_token)
+            self.agent.step(self, on_event=self._on_event,
+                            on_token=self._on_token)
 
         logger.info("Condensation request processed")
 
@@ -2546,7 +2576,8 @@ class LocalConversation(BaseConversation):
                 # Log is already written incrementally, just return failure
                 return False
 
-        logger.info(f"Rerun complete: {action_count} actions processed successfully")
+        logger.info(
+            f"Rerun complete: {action_count} actions processed successfully")
         return True
 
     def execute_tool(self, tool_name: str, action: Action) -> Observation:
@@ -2597,4 +2628,5 @@ class LocalConversation(BaseConversation):
         try:
             self.close()
         except Exception as e:
-            logger.warning(f"Error during conversation cleanup: {e}", exc_info=True)
+            logger.warning(
+                f"Error during conversation cleanup: {e}", exc_info=True)
