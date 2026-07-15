@@ -288,16 +288,15 @@ class LocalConversation(BaseConversation):
                 ts for ts in client_tool_specs if ts.name not in existing_names
             ]
             if new_tools:
-                agent = agent.model_copy(
-                    update={"tools": [*agent.tools, *new_tools]})
+                agent = agent.model_copy(update={"tools": [*agent.tools, *new_tools]})
 
         self.agent = agent
         if isinstance(workspace, (str, Path)):
             # LocalWorkspace accepts both str and Path via BeforeValidator
             workspace = LocalWorkspace(working_dir=workspace)
-        assert isinstance(workspace, LocalWorkspace), (
-            "workspace must be a LocalWorkspace instance"
-        )
+        assert isinstance(
+            workspace, LocalWorkspace
+        ), "workspace must be a LocalWorkspace instance"
         self.workspace = workspace
         ws_path = Path(self.workspace.working_dir)
         if not ws_path.exists():
@@ -306,10 +305,11 @@ class LocalConversation(BaseConversation):
             id=desired_id,
             agent=agent,
             workspace=self.workspace,
-            persistence_dir=self.get_persistence_dir(
-                persistence_dir, desired_id)
-            if persistence_dir
-            else None,
+            persistence_dir=(
+                self.get_persistence_dir(persistence_dir, desired_id)
+                if persistence_dir
+                else None
+            ),
             max_iterations=max_iteration_per_run,
             stuck_detection=stuck_detection,
             cipher=cipher,
@@ -414,8 +414,7 @@ class LocalConversation(BaseConversation):
                     # even with a None value — that is their resolved state, not
                     # a stale placeholder to overwrite.
                     if existing is None or (
-                        isinstance(
-                            existing, StaticSecret) and existing.value is None
+                        isinstance(existing, StaticSecret) and existing.value is None
                     ):
                         fill_secrets[name] = secret
                 if fill_secrets:
@@ -423,8 +422,7 @@ class LocalConversation(BaseConversation):
 
         # Higher priority: request.secrets overwrites duplicate keys from above.
         if secrets:
-            secret_values: dict[str, SecretValue] = {
-                k: v for k, v in secrets.items()}
+            secret_values: dict[str, SecretValue] = {k: v for k, v in secrets.items()}
             self.update_secrets(secret_values)
 
         atexit.register(self.close)
@@ -517,8 +515,7 @@ class LocalConversation(BaseConversation):
         logger.error(detail)
         self._state.execution_status = ConversationExecutionStatus.ERROR
         self._on_event(
-            ConversationErrorEvent(source="environment",
-                                   code=code, detail=detail)
+            ConversationErrorEvent(source="environment", code=code, detail=detail)
         )
 
     @property
@@ -613,8 +610,7 @@ class LocalConversation(BaseConversation):
                 conversation_id=fork_id,
                 max_iteration_per_run=self.max_iteration_per_run,
                 stuck_detection=self._stuck_detector is not None,
-                visualizer=type(
-                    self._visualizer) if self._visualizer else None,
+                visualizer=type(self._visualizer) if self._visualizer else None,
                 delete_on_close=self.delete_on_close,
                 tags=tags,
             )
@@ -632,8 +628,7 @@ class LocalConversation(BaseConversation):
             fork_conv._state.activated_knowledge_skills = list(
                 self._state.activated_knowledge_skills
             )
-            fork_conv._state.agent_state = copy.deepcopy(
-                self._state.agent_state)
+            fork_conv._state.agent_state = copy.deepcopy(self._state.agent_state)
 
             # Copy title via tags if provided
             if title is not None:
@@ -644,8 +639,7 @@ class LocalConversation(BaseConversation):
 
             # Reset or copy metrics
             if not reset_metrics:
-                fork_conv._state.stats = self._state.stats.model_copy(
-                    deep=True)
+                fork_conv._state.stats = self._state.stats.model_copy(deep=True)
 
             event_count = len(self._state.events)
 
@@ -682,8 +676,7 @@ class LocalConversation(BaseConversation):
         explicit_plugin_names: set[str] = set()
 
         merged_context = self.agent.agent_context
-        merged_mcp = dict(
-            self.agent.mcp_config) if self.agent.mcp_config else {}
+        merged_mcp = dict(self.agent.mcp_config) if self.agent.mcp_config else {}
 
         # Track whether we have plugins or MCP config to process
         has_mcp_config = bool(merged_mcp)
@@ -694,9 +687,11 @@ class LocalConversation(BaseConversation):
                 registration.model_copy(
                     update={
                         "source": self._expand_plugin_source_ref(registration.source),
-                        "ref": self._expand_plugin_source_ref(registration.ref)
-                        if registration.ref
-                        else None,
+                        "ref": (
+                            self._expand_plugin_source_ref(registration.ref)
+                            if registration.ref
+                            else None
+                        ),
                     }
                 )
                 for registration in merged_context.registered_marketplaces
@@ -704,8 +699,7 @@ class LocalConversation(BaseConversation):
             registry = MarketplaceRegistry(registrations)
             for registration in registry.get_auto_load_registrations():
                 try:
-                    marketplace, _ = registry.get_marketplace(
-                        registration.name)
+                    marketplace, _ = registry.get_marketplace(registration.name)
                 except Exception:
                     logger.warning(
                         "Failed to load marketplace '%s'; continuing without it",
@@ -714,19 +708,16 @@ class LocalConversation(BaseConversation):
                     )
                     continue
                 for entry in marketplace.plugins:
-                    source, ref, repo_path = marketplace.resolve_plugin_source(
-                        entry)
+                    source, ref, repo_path = marketplace.resolve_plugin_source(entry)
                     plugins_to_load.append(
                         (
-                            PluginSource(source=source, ref=ref,
-                                         repo_path=repo_path),
+                            PluginSource(source=source, ref=ref, repo_path=repo_path),
                             True,
                         )
                     )
 
         if self._plugin_specs:
-            plugins_to_load.extend((spec, False)
-                                   for spec in self._plugin_specs)
+            plugins_to_load.extend((spec, False) for spec in self._plugin_specs)
 
         # Load plugins if specified or registered for auto-load
         if plugins_to_load:
@@ -757,8 +748,7 @@ class LocalConversation(BaseConversation):
                 # record keeps the ${VAR} placeholder rather than the raw
                 # secret. from_plugin_source() additionally redacts any inline
                 # credentials. Resume re-fetches via the resolved commit SHA.
-                resolved = ResolvedPluginSource.from_plugin_source(
-                    spec, resolved_ref)
+                resolved = ResolvedPluginSource.from_plugin_source(spec, resolved_ref)
                 self._resolved_plugins.append(resolved)
 
                 # Load the plugin
@@ -782,8 +772,7 @@ class LocalConversation(BaseConversation):
                 if plugin.agents:
                     all_plugin_agents.extend(plugin.agents)
 
-            logger.info(
-                f"Loaded {len(plugins_to_load)} plugin(s) via Conversation")
+            logger.info(f"Loaded {len(plugins_to_load)} plugin(s) via Conversation")
 
         # Ambient plugins: enabled installed plugins plus local user/project
         # plugins, mirroring how installed/local skills already auto-load. These
@@ -975,9 +964,11 @@ class LocalConversation(BaseConversation):
                 registration.model_copy(
                     update={
                         "source": self._expand_plugin_source_ref(registration.source),
-                        "ref": self._expand_plugin_source_ref(registration.ref)
-                        if registration.ref
-                        else None,
+                        "ref": (
+                            self._expand_plugin_source_ref(registration.ref)
+                            if registration.ref
+                            else None
+                        ),
                     }
                 )
                 for registration in registrations
@@ -1024,8 +1015,7 @@ class LocalConversation(BaseConversation):
         if not plugin_mcp_config:
             return []
         return list(
-            create_mcp_tools(plugin_mcp_config,
-                             _RUNTIME_MCP_TIMEOUT_SECS).tools
+            create_mcp_tools(plugin_mcp_config, _RUNTIME_MCP_TIMEOUT_SECS).tools
         )
 
     def _runtime_skill_tools_for_agent(self) -> list[ToolDefinition]:
@@ -1060,8 +1050,7 @@ class LocalConversation(BaseConversation):
         spec = self._marketplace_registry_from_context().resolve_plugin(plugin_ref)
 
         fetch_source = self._expand_plugin_source_ref(spec.source)
-        fetch_ref = self._expand_plugin_source_ref(
-            spec.ref) if spec.ref else spec.ref
+        fetch_ref = self._expand_plugin_source_ref(spec.ref) if spec.ref else spec.ref
         path, resolved_ref = fetch_plugin_with_resolution(
             source=fetch_source,
             ref=fetch_ref,
@@ -1117,8 +1106,7 @@ class LocalConversation(BaseConversation):
             if plugin.hooks and not plugin.hooks.is_empty():
                 self._merge_runtime_plugin_hooks(plugin.hooks)
 
-            resolved = ResolvedPluginSource.from_plugin_source(
-                spec, resolved_ref)
+            resolved = ResolvedPluginSource.from_plugin_source(spec, resolved_ref)
             if self._resolved_plugins is None:
                 self._resolved_plugins = []
             self._resolved_plugins.append(resolved)
@@ -1334,8 +1322,7 @@ class LocalConversation(BaseConversation):
         try:
             cached = self.llm_registry.get(usage_id)
         except KeyError:
-            loaded = self._profile_store.load(
-                profile_name, cipher=self._cipher)
+            loaded = self._profile_store.load(profile_name, cipher=self._cipher)
             cached = loaded.model_copy(update={"usage_id": usage_id})
         self.switch_llm(cached)
 
@@ -1442,9 +1429,9 @@ class LocalConversation(BaseConversation):
         if isinstance(message, str):
             message = Message(role="user", content=[TextContent(text=message)])
 
-        assert message.role == "user", (
-            "Only user messages are allowed to be sent to the agent."
-        )
+        assert (
+            message.role == "user"
+        ), "Only user messages are allowed to be sent to the agent."
         with self._state:
             if self._state.execution_status in (
                 ConversationExecutionStatus.FINISHED,
@@ -1475,8 +1462,7 @@ class LocalConversation(BaseConversation):
                         f"activated skills: {activated_skill_names}"
                     )
                     extended_content.append(content)
-                    self._state.activated_knowledge_skills.extend(
-                        activated_skill_names)
+                    self._state.activated_knowledge_skills.extend(activated_skill_names)
 
             user_msg_event = MessageEvent(
                 source="user",
@@ -1552,8 +1538,7 @@ class LocalConversation(BaseConversation):
                                         source="environment",
                                         llm_message=Message(
                                             role="user",
-                                            content=[TextContent(
-                                                text=prefixed)],
+                                            content=[TextContent(text=prefixed)],
                                         ),
                                     )
                                     self._on_event(feedback_msg)
@@ -1606,14 +1591,17 @@ class LocalConversation(BaseConversation):
                     # 4. Run loop continues to next iteration and processes the message
                     # 5. Without this design, concurrent messages would be lost
                     if (
-                        self.state.execution_status == ConversationExecutionStatus.WAITING_FOR_CONFIRMATION
+                        self.state.execution_status
+                        == ConversationExecutionStatus.WAITING_FOR_CONFIRMATION
                     ):
                         break
 
                     budget_detail = self._budget_exceeded_detail()
-                    if budget_detail and (self._state.execution_status != ConversationExecutionStatus.FINISHED):
-                        self._emit_run_limit_error(
-                            "MaxBudgetReached", budget_detail)
+                    if budget_detail and (
+                        self._state.execution_status
+                        != ConversationExecutionStatus.FINISHED
+                    ):
+                        self._emit_run_limit_error("MaxBudgetReached", budget_detail)
                         break
 
                     if iteration >= self.max_iteration_per_run:
@@ -1621,7 +1609,8 @@ class LocalConversation(BaseConversation):
                         # preserve the FINISHED status rather than
                         # overwriting it with ERROR.
                         if (
-                            self._state.execution_status == ConversationExecutionStatus.FINISHED
+                            self._state.execution_status
+                            == ConversationExecutionStatus.FINISHED
                         ):
                             break
                         error_msg = (
@@ -1634,7 +1623,7 @@ class LocalConversation(BaseConversation):
                             ConversationErrorEvent(
                                 source="environment",
                                 code="MaxIterationsReached",
-                                detail=error_msg
+                                detail=error_msg,
                             )
                         )
                         break
@@ -1684,6 +1673,7 @@ class LocalConversation(BaseConversation):
         """
         self._arun_task = asyncio.current_task()
         self._cancel_token = CancellationToken()
+
         # Off-load lazy init to a worker thread: init_state may block the loop
         # (an ACP agent resolves credentials via a synchronous LookupSecret
         # httpx.get). When the agent-server runs arun() on its event loop and
@@ -1706,8 +1696,7 @@ class LocalConversation(BaseConversation):
                     updated_agent_state[ACP_LAST_PROMPT_USER_MESSAGE_ID] = (
                         inflight_prompt_user_message_id
                     )
-                    updated_agent_state.pop(
-                        ACP_INFLIGHT_PROMPT_USER_MESSAGE_ID, None)
+                    updated_agent_state.pop(ACP_INFLIGHT_PROMPT_USER_MESSAGE_ID, None)
                     self._state.agent_state = updated_agent_state
 
             if self._state.execution_status in [
@@ -1717,6 +1706,7 @@ class LocalConversation(BaseConversation):
                 ConversationExecutionStatus.STUCK,
             ]:
                 self._state.execution_status = ConversationExecutionStatus.RUNNING
+
             last_acp_prompt_user_message_id = self._state.agent_state.get(
                 ACP_LAST_PROMPT_USER_MESSAGE_ID
             )
@@ -1753,8 +1743,7 @@ class LocalConversation(BaseConversation):
                                         source="environment",
                                         llm_message=Message(
                                             role="user",
-                                            content=[TextContent(
-                                                text=prefixed)],
+                                            content=[TextContent(text=prefixed)],
                                         ),
                                     )
                                     self._on_event(feedback_msg)
@@ -1843,6 +1832,17 @@ class LocalConversation(BaseConversation):
                         # state-mutating tools (e.g. switch_llm) running on
                         # worker threads skip re-acquiring it instead of
                         # deadlocking while this await holds it (#3485).
+                        # 这个 await 期间会一直持有状态锁。astep() 内部的变更
+                        # （包括在事件循环线程上修改状态的原生 async Agent.astep /
+                        # ACPAgent.astep）是有意的，并属于这个临界区。这里的
+                        # 不变量只是：持有锁期间不能让无关的状态 mutator 并发运行。
+                        # 由于 FIFOLock 是线程级（不是 task 级）可重入，在同一
+                        # 事件循环线程 await 到任何无关状态变更 coroutine 都会静默
+                        # 重入锁并破坏历史。这类无关 mutator 必须通过
+                        # run_in_executor 分派到工作线程。
+                        # 标记当前 step 正持有状态锁，让工作线程中的状态变更工具
+                        # （例如 switch_llm）跳过重新获取锁，避免在该 await 持锁时
+                        # 死锁（#3485）。
                         self._step_holds_state_lock = True
                         try:
                             await self.agent.astep(
@@ -1877,7 +1877,7 @@ class LocalConversation(BaseConversation):
                             ):
                                 break
                             error_msg = (
-                                f"Agent reached maximum iterations limit "
+                                f"Agent reached maximum iterations limit"
                                 f"({self.max_iteration_per_run})."
                             )
                             logger.error(error_msg)
@@ -1885,20 +1885,21 @@ class LocalConversation(BaseConversation):
                                 ConversationExecutionStatus.ERROR
                             )
                             self._on_event(
-                                ConversationErrorEvent(
+                                ConversationExecutionStatus(
                                     source="environment",
                                     code="MaxIterationsReached",
                                     detail=error_msg,
                                 )
                             )
                             break
-
                         continue
 
                 # ACP prompt round-trips can run for minutes. Keep the state
                 # lock free while awaiting them so incoming user messages can
                 # be persisted immediately; event callbacks take the lock only
                 # for each individual mutation.
+                # ACP prompt 往返可能持续数分钟。等待期间释放状态锁，使传入的用户
+                # 消息能立即持久化；事件回调只会在单次变更时获取锁。
                 if acp_step_user_message is None:
                     with self._state:
                         acp_prompt_messages = [
@@ -1966,15 +1967,13 @@ class LocalConversation(BaseConversation):
                     )
                     updated_agent_state = dict(self._state.agent_state)
                     if (
-                        updated_agent_state.get(
-                            ACP_INFLIGHT_PROMPT_USER_MESSAGE_ID)
+                        updated_agent_state.get(ACP_INFLIGHT_PROMPT_USER_MESSAGE_ID)
                         == acp_step_user_message_id
                     ):
                         updated_agent_state.pop(
                             ACP_INFLIGHT_PROMPT_USER_MESSAGE_ID, None
                         )
-                    updated_agent_state.pop(
-                        ACP_SUPERSEDE_INFLIGHT_PROMPT, None)
+                    updated_agent_state.pop(ACP_SUPERSEDE_INFLIGHT_PROMPT, None)
                     if (
                         acp_step_user_message_id is not None
                         and self._state.execution_status
@@ -2045,8 +2044,7 @@ class LocalConversation(BaseConversation):
                         self._state.execution_status
                         != ConversationExecutionStatus.FINISHED
                     ):
-                        self._emit_run_limit_error(
-                            "MaxBudgetReached", budget_detail)
+                        self._emit_run_limit_error("MaxBudgetReached", budget_detail)
                         break
 
                     if iteration >= self.max_iteration_per_run:
@@ -2069,6 +2067,7 @@ class LocalConversation(BaseConversation):
                             )
                         )
                         break
+
         except asyncio.CancelledError:
             # CancelledError is intentionally NOT re-raised.  ``interrupt()``
             # uses ``asyncio.Task.cancel()`` to break out of ``arun()`` and
@@ -2076,6 +2075,10 @@ class LocalConversation(BaseConversation):
             # propagate the cancellation to EventService/caller which would
             # surface it as an unexpected error.  Instead we transition to
             # PAUSED so the conversation can be resumed later.
+            # 有意不重新抛出 CancelledError。``interrupt()`` 使用
+            # ``asyncio.Task.cancel()`` 跳出 ``arun()``，并期望 task 干净结束。
+            # 重新抛出会把取消传播给 EventService/调用方，表现为意外错误。
+            # 因此这里改为转入 PAUSED，让会话稍后可以恢复。
             logger.info("arun() interrupted via task cancellation")
             with self._state:
                 updated_agent_state = dict(self._state.agent_state)
@@ -2083,8 +2086,7 @@ class LocalConversation(BaseConversation):
                     ACP_INFLIGHT_PROMPT_USER_MESSAGE_ID, None
                 )
                 superseded_by_new_message = bool(
-                    updated_agent_state.pop(
-                        ACP_SUPERSEDE_INFLIGHT_PROMPT, False)
+                    updated_agent_state.pop(ACP_SUPERSEDE_INFLIGHT_PROMPT, False)
                 )
                 completed_cancelled_prompt = (
                     self._state.execution_status == ConversationExecutionStatus.FINISHED
@@ -2102,6 +2104,9 @@ class LocalConversation(BaseConversation):
                 # these the LLM history would contain tool-call requests
                 # with no tool-result, which causes provider errors on
                 # the next completion call.
+                # 为中断发生时仍在飞行中的 ActionEvents 发出合成错误 observations。
+                # 没有这些补偿，LLM 历史会包含缺少 tool-result 的 tool-call 请求，
+                # 导致下一次 completion 调用触发 provider 错误。
                 self._emit_orphaned_action_errors()
 
                 self._state.execution_status = ConversationExecutionStatus.PAUSED
@@ -2109,13 +2114,14 @@ class LocalConversation(BaseConversation):
         except Exception as e:
             with self._state:
                 updated_agent_state = dict(self._state.agent_state)
-                updated_agent_state.pop(
-                    ACP_INFLIGHT_PROMPT_USER_MESSAGE_ID, None)
+                updated_agent_state.pop(ACP_INFLIGHT_PROMPT_USER_MESSAGE_ID, None)
                 updated_agent_state.pop(ACP_SUPERSEDE_INFLIGHT_PROMPT, None)
                 self._state.agent_state = updated_agent_state
                 self._state.execution_status = ConversationExecutionStatus.ERROR
                 # Skip the generic event if the agent already surfaced a typed,
                 # detailed one for this failure (see _agent_already_surfaced_error).
+                # 如果 agent 已经暴露了带类型的详细失败事件，则跳过通用事件
+                # （见 _agent_already_surfaced_error）。
                 if not _agent_already_surfaced_error(
                     self._state.events, _run_start_event_count
                 ):
@@ -2133,6 +2139,8 @@ class LocalConversation(BaseConversation):
             # A cancelled token must stay observable: interrupted tool calls run
             # in worker threads that can outlive arun() and still poll it. A
             # fresh token is created on the next run().
+            # 已取消的 token 必须保持可见：被中断的工具调用运行在工作线程中，
+            # 可能比 arun() 活得更久并继续轮询它。下一次 run() 会创建新 token。
             if self._cancel_token is not None and not self._cancel_token.is_cancelled:
                 self._cancel_token = None
             self._arun_task = None
@@ -2149,8 +2157,7 @@ class LocalConversation(BaseConversation):
         This is a non-invasive method to reject actions between run() calls.
         Also clears the agent_waiting_for_confirmation flag.
         """
-        pending_actions = ConversationState.get_unmatched_actions(
-            self._state.events)
+        pending_actions = ConversationState.get_unmatched_actions(self._state.events)
 
         with self._state:
             # Always clear the agent_waiting_for_confirmation flag
@@ -2173,8 +2180,7 @@ class LocalConversation(BaseConversation):
                     rejection_reason=reason,
                 )
                 self._on_event(rejection_event)
-                logger.info(
-                    f"Rejected pending action: {action_event} - {reason}")
+                logger.info(f"Rejected pending action: {action_event} - {reason}")
 
     def _emit_orphaned_action_errors(self) -> None:
         """Emit ``AgentErrorEvent`` for actions that have no observation.
@@ -2354,8 +2360,7 @@ class LocalConversation(BaseConversation):
         from openhands.sdk.agent.utils import make_llm_completion, prepare_llm_messages
 
         template_dir = (
-            Path(__file__).parent.parent.parent /
-            "context" / "prompts" / "templates"
+            Path(__file__).parent.parent.parent / "context" / "prompts" / "templates"
         )
 
         question_text = render_template(
@@ -2469,8 +2474,7 @@ class LocalConversation(BaseConversation):
         # This will trigger the condenser if it handles condensation requests
         with self._state:
             # Take a single step to process the condensation request
-            self.agent.step(self, on_event=self._on_event,
-                            on_token=self._on_token)
+            self.agent.step(self, on_event=self._on_event, on_token=self._on_token)
 
         logger.info("Condensation request processed")
 
@@ -2576,8 +2580,7 @@ class LocalConversation(BaseConversation):
                 # Log is already written incrementally, just return failure
                 return False
 
-        logger.info(
-            f"Rerun complete: {action_count} actions processed successfully")
+        logger.info(f"Rerun complete: {action_count} actions processed successfully")
         return True
 
     def execute_tool(self, tool_name: str, action: Action) -> Observation:
@@ -2628,5 +2631,4 @@ class LocalConversation(BaseConversation):
         try:
             self.close()
         except Exception as e:
-            logger.warning(
-                f"Error during conversation cleanup: {e}", exc_info=True)
+            logger.warning(f"Error during conversation cleanup: {e}", exc_info=True)
